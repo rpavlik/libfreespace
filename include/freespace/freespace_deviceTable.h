@@ -26,7 +26,7 @@
 #include "win32_stdint.h"
 #include <windows.h>
 
-#if _MSC_VER >= 1600
+#ifdef FREESPACE_NEED_DDK_WORKAROUND
 // With VC2010 and the WinDDK 7600, setting the include path to be have the 
 // WinDDK inc/api directory causes build failure.  
 // The workaround is to only have the /inc directory in the path, and add 

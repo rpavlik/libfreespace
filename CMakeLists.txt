@@ -120,7 +120,12 @@ else()
     if (WIN32)
         # WINDOWS BUILD CONFIGURATION
 
-        find_package(WinDDK REQUIRED)
+        find_package(WinHID REQUIRED)
+        if((NOT MSVC_VERSION LESS 1600) AND WINHID_INCLUDE_DIR MATCHES "api")
+            # Move up a directory so the #include <api/hidpi.h> works
+            get_filename_component(WINHID_INCLUDE_DIRS "${WINHID_INCLUDE_DIR}/.." ABSOLUTE)
+            add_definitions(-DFREESPACE_NEED_DDK_WORKAROUND)
+        endif()
 
         # If using Visual Studio 9 (2008) then we need a couple special includes to make things work
         IF(MSVC90)
@@ -138,7 +143,7 @@ else()
             include_directories(${WINDDK_INCLUDE_DIR}/api)
         ENDIF()
 
-        include_directories(${WINDDK_INCLUDE_DIR})
+        include_directories(${WINHID_INCLUDE_DIRS})
 
         add_definitions(-DUNICODE -D_UNICODE)
 
@@ -151,32 +156,29 @@ else()
         )
 
         set_target_properties(freespace PROPERTIES PREFIX "lib")
+        find_package(WindowsSDK)
 
-
-	    IF (CMAKE_SIZEOF_VOID_P EQUAL 8)   # Means we are using 64-bit
-	        set(_hid ${WINDDK_WIN7_X64_HID_LIB})
-            set(_setupapi ${WINDDK_WIN7_X64_SETUPAPI_LIB})
-	    ELSE()
-	        IF (${CMAKE_SYSTEM_VERSION} EQUAL 5.1)  # Means we are running XP
-	            set(_hid ${WINDDK_WINXP_X86_HID_LIB})
-                set(_setupapi ${WINDDK_WINXP_X86SETUPAPID_LIB})
-	        ELSE()
-	            set(_hid ${WINDDK_WIN7_X86_HID_LIB})
-                set(_setupapi ${WINDDK_WIN7_X86_SETUPAPI_LIB})
-	        ENDIF()
-	    ENDIF()
-        
-        if (NOT _hid)
-            message(FATAL_ERROR "Could not locate hid.lib")
+        get_filename_component(_search_locations "${WINHID_LIBRARY}" PATH)
+        IF(CMAKE_SIZEOF_VOID_P EQUAL 8)   # Means we are using 64-bit
+            set(_winsdk_libdir lib/x64)
+        else()
+            set(_winsdk_libdir lib)
         endif()
-        
-        if (NOT _setupapi)
-            # Not found in WinDDK, assume it's in default search path
-            set(_setupapi "setupapi.lib")
+        if(WINDOWSSDK_FOUND_PREFERENCE)
+            list(APPEND _search_locations "${WINDOWSSDK_PREFERRED_DIR}/${_winsdk_libdir}")
+        elseif(WINDOWSSDK_FOUND)
+            list(APPEND _search_locations "${WINDOWSSDK_LATEST_DIR}/${_winsdk_libdir}")
         endif()
 
-        target_link_libraries(freespace ${_hid})
-        target_link_libraries(freespace ${_setupapi})
+        find_library(WINDOWS_SETUPAPI_LIBRARY
+            setupapi
+            HINTS
+            ${_search_locations})
+
+        set(_hid ${WINHID_LIBRARIES})
+        set(_setupapi ${WINDOWS_SETUPAPI_LIBRARY})
+
+        target_link_libraries(freespace ${_hid} ${_setupapi})
 
     elseif(UNIX)
         # Additional headers
