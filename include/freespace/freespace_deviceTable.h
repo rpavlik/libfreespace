@@ -23,7 +23,12 @@
 
 
 #ifdef _WIN32
+#ifdef _MSC_VER
 #include "win32_stdint.h"
+#else
+#include <stdint.h>
+#endif
+
 #include <windows.h>
 
 #ifdef FREESPACE_NEED_DDK_WORKAROUND
